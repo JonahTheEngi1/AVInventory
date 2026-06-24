@@ -26,7 +26,6 @@
         </label>
         <p class="form-error" id="loginError"></p>
         <button class="primary-btn" type="submit">Sign in</button>
-        <p class="row-sub">Initial manager: manager@avinventory.local / AVInventory123!</p>
       </form>
     </section>
 
@@ -243,13 +242,13 @@
     </div>
 
     <dialog id="itemDialog">
-      <form method="dialog" class="modal">
+      <div class="modal">
         <div class="modal-head">
           <h3 id="dialogTitle">Item</h3>
-          <button class="icon-btn" value="close" aria-label="Close" type="submit">x</button>
+          <button class="icon-btn" id="dialogCloseBtn" aria-label="Close" type="button">x</button>
         </div>
         <div id="dialogBody"></div>
-      </form>
+      </div>
     </dialog>
 
     <script src="app.js"></script>

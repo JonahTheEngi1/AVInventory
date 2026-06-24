@@ -64,6 +64,8 @@ const els = {
   resetDemoBtn: document.getElementById("resetDemoBtn")
 };
 
+document.getElementById("dialogCloseBtn").addEventListener("click", () => els.dialog.close());
+
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -193,7 +195,7 @@ function renderStats() {
 }
 
 function renderLocationOptions() {
-  els.itemLocation.innerHTML = state.locations
+  els.itemLocation.innerHTML = `<option value="">Unassigned</option>` + state.locations
     .map((location) => `<option value="${escapeHtml(location.id)}">${escapeHtml(location.name)}</option>`)
     .join("");
 }
@@ -239,6 +241,7 @@ function renderInventory() {
         <td>
           <div class="action-row">
             <button type="button" data-action="view-product" data-id="${escapeHtml(product.id)}">Labels</button>
+            <button type="button" data-action="edit-product" data-id="${escapeHtml(product.id)}">Edit</button>
             <button type="button" data-action="adjust-product" data-id="${escapeHtml(product.id)}">Set Qty</button>
             <button class="danger" type="button" data-action="remove-product" data-id="${escapeHtml(product.id)}">Remove</button>
           </div>
@@ -261,6 +264,7 @@ function renderLocations() {
       <div class="action-row">
         <button type="button" data-action="scan-location" data-id="${escapeHtml(location.id)}">Open</button>
         <button type="button" data-action="print-location" data-id="${escapeHtml(location.id)}">Print</button>
+        <button class="danger" type="button" data-action="remove-location" data-id="${escapeHtml(location.id)}">Remove</button>
       </div>
     </article>`;
   }).join("");
@@ -317,7 +321,7 @@ function renderScanUnit(unit, product, location, action) {
     </div>
     <div class="meta-grid">
       <div><span>Unit barcode</span><strong>${escapeHtml(unit.id)}</strong></div>
-      <div><span>Location</span><strong>${escapeHtml(location.name)}</strong></div>
+      <div><span>Location</span><strong>${escapeHtml(location?.name || "Unassigned")}</strong></div>
       <div><span>Action</span><strong>${escapeHtml(action.replace("-", " "))}</strong></div>
       <div><span>User</span><strong>${escapeHtml(currentUser.email)}</strong></div>
     </div>
@@ -396,6 +400,46 @@ async function createItem(event) {
   showProductDialog(result.product.id);
 }
 
+function locationOptionMarkup(selectedId) {
+  return [`<option value="" ${!selectedId ? "selected" : ""}>Unassigned</option>`]
+    .concat(state.locations.map((location) => `<option value="${escapeHtml(location.id)}" ${location.id === selectedId ? "selected" : ""}>${escapeHtml(location.name)}</option>`))
+    .join("");
+}
+
+function showEditProductDialog(productId) {
+  const product = byId(state.products, productId);
+  if (!product) return;
+  els.dialogTitle.textContent = `Edit ${product.name}`;
+  els.dialogBody.innerHTML = `<form class="dialog-form" id="editProductForm">
+    <label>
+      Item name
+      <input id="editProductName" required value="${escapeHtml(product.name)}" />
+    </label>
+    <label>
+      Storage location
+      <select id="editProductLocation">${locationOptionMarkup(product.locationId)}</select>
+    </label>
+    <button class="primary-btn" type="submit">Save changes</button>
+  </form>`;
+  els.dialog.showModal();
+  document.getElementById("editProductForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const result = await api(`/api/products/${encodeURIComponent(productId)}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: document.getElementById("editProductName").value,
+          locationId: document.getElementById("editProductLocation").value
+        })
+      });
+      applyServerState(result.state);
+      els.dialog.close();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
 async function setQuantity(productId) {
   const product = byId(state.products, productId);
   const current = unitsForProduct(productId).length;
@@ -428,6 +472,15 @@ async function createLocation(event) {
   applyServerState(result.state);
   els.locationForm.reset();
   showLocationLabel(result.location.id);
+}
+
+async function removeLocation(locationId) {
+  const location = byId(state.locations, locationId);
+  const assigned = state.products.filter((product) => product.locationId === locationId).length;
+  const detail = assigned ? ` ${assigned} product type${assigned === 1 ? "" : "s"} will become Unassigned.` : "";
+  if (!confirm(`Remove ${location.name}?${detail}`)) return;
+  const result = await api(`/api/locations/${encodeURIComponent(locationId)}`, { method: "DELETE" });
+  applyServerState(result.state);
 }
 
 async function createUser(event) {
@@ -549,6 +602,7 @@ els.inventoryTable.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
   if (button.dataset.action === "view-product") showProductDialog(button.dataset.id);
+  if (button.dataset.action === "edit-product") showEditProductDialog(button.dataset.id);
   if (button.dataset.action === "adjust-product") setQuantity(button.dataset.id);
   if (button.dataset.action === "remove-product") removeProduct(button.dataset.id);
 });
@@ -560,6 +614,7 @@ els.locationList.addEventListener("click", (event) => {
     showLocationScan(byId(state.locations, button.dataset.id));
   }
   if (button.dataset.action === "print-location") showLocationLabel(button.dataset.id);
+  if (button.dataset.action === "remove-location") removeLocation(button.dataset.id);
 });
 els.printLabelsBtn.addEventListener("click", showAllLabels);
 els.resetDemoBtn.addEventListener("click", async () => {

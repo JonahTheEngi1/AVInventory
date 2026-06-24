@@ -481,6 +481,9 @@ select:focus {
 
 .tag-filter button,
 .tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid var(--line);
   background: white;
   color: #33413d;
@@ -489,6 +492,7 @@ select:focus {
   padding: 0 10px;
   font-size: 0.78rem;
   font-weight: 850;
+  line-height: 1;
 }
 
 .tag-filter button.active {
@@ -638,6 +642,22 @@ dialog::backdrop {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 14px;
+}
+
+.dialog-form label {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.dialog-form input,
+.dialog-form select {
+  margin-top: 6px;
 }
 
 .icon-btn {

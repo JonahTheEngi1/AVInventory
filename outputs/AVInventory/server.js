@@ -276,8 +276,8 @@ function handleScan(req, res, user, body) {
     const at = new Date().toISOString();
     unit.status = nextStatus;
     unit.lastActionAt = at;
-    unit.history.unshift({ action, at, role: user.role, locationId: location.id, userEmail: user.email });
-    logActivity(action, user, { unitId: unit.id, productId: product.id, locationId: location.id });
+    unit.history.unshift({ action, at, role: user.role, locationId: location?.id || "", userEmail: user.email });
+    logActivity(action, user, { unitId: unit.id, productId: product.id, locationId: location?.id || "" });
     saveData(data);
     return sendJson(res, 200, { type: "unit", action, unit, product, location, state: stateFor(user) });
   }
@@ -326,7 +326,7 @@ async function handleApi(req, res, url) {
       const locationId = String(body.locationId || "").trim();
       const quantity = Math.max(1, Number(body.quantity) || 1);
       if (!name) return sendError(res, 400, "Item name is required.");
-      if (!locationById(locationId)) return sendError(res, 400, "Valid location is required.");
+      if (locationId && !locationById(locationId)) return sendError(res, 400, "Valid location is required.");
       const product = {
         id: uniqueProductId(name),
         name,
@@ -339,6 +339,24 @@ async function handleApi(req, res, url) {
       logActivity("created-item", user, { productId: product.id, label: product.name, locationId });
       saveData(data);
       return sendJson(res, 201, { product, state: stateFor(user) });
+    }
+
+    const productPatchMatch = url.pathname.match(/^\/api\/products\/([^/]+)$/);
+    if (req.method === "PATCH" && productPatchMatch) {
+      const user = requireManager(req, res);
+      if (!user) return;
+      const product = productById(decodeURIComponent(productPatchMatch[1]));
+      if (!product) return sendError(res, 404, "Product not found.");
+      const body = await readBody(req);
+      const name = String(body.name || "").trim();
+      const locationId = String(body.locationId || "").trim();
+      if (!name) return sendError(res, 400, "Item name is required.");
+      if (locationId && !locationById(locationId)) return sendError(res, 400, "Valid location is required.");
+      product.name = name;
+      product.locationId = locationId;
+      logActivity("edited-item", user, { productId: product.id, label: product.name, locationId });
+      saveData(data);
+      return sendJson(res, 200, { product, state: stateFor(user) });
     }
 
     const quantityMatch = url.pathname.match(/^\/api\/products\/([^/]+)\/quantity$/);
@@ -389,6 +407,22 @@ async function handleApi(req, res, url) {
       logActivity("created-location", user, { locationId: location.id, label: location.name });
       saveData(data);
       return sendJson(res, 201, { location, state: stateFor(user) });
+    }
+
+    const locationMatch = url.pathname.match(/^\/api\/locations\/([^/]+)$/);
+    if (req.method === "DELETE" && locationMatch) {
+      const user = requireManager(req, res);
+      if (!user) return;
+      const locationId = decodeURIComponent(locationMatch[1]);
+      const location = locationById(locationId);
+      if (!location) return sendError(res, 404, "Location not found.");
+      data.locations = data.locations.filter((entry) => entry.id !== locationId);
+      data.products.forEach((product) => {
+        if (product.locationId === locationId) product.locationId = "";
+      });
+      logActivity("removed-location", user, { locationId, label: location.name });
+      saveData(data);
+      return sendJson(res, 200, { state: stateFor(user) });
     }
 
     if (req.method === "POST" && url.pathname === "/api/users") {
