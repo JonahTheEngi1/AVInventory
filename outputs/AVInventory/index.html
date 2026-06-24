@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AVInventory</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <section class="login-screen" id="loginScreen">
+      <form class="login-card" id="loginForm">
+        <div class="brand login-brand">
+          <div class="brand-mark">AV</div>
+          <div>
+            <h1>AVInventory</h1>
+            <p>Server inventory login</p>
+          </div>
+        </div>
+        <label>
+          Email
+          <input id="loginEmail" type="email" autocomplete="username" required placeholder="manager@avinventory.local" />
+        </label>
+        <label>
+          Password
+          <input id="loginPassword" type="password" autocomplete="current-password" required placeholder="Password" />
+        </label>
+        <p class="form-error" id="loginError"></p>
+        <button class="primary-btn" type="submit">Sign in</button>
+        <p class="row-sub">Initial manager: manager@avinventory.local / AVInventory123!</p>
+      </form>
+    </section>
+
+    <div class="app-shell hidden" id="appShell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AV</div>
+          <div>
+            <h1>AVInventory</h1>
+            <p>Equipment check-in</p>
+          </div>
+        </div>
+
+        <section class="user-panel">
+          <span>Signed in</span>
+          <strong id="currentUserName">User</strong>
+          <p id="currentUserRole">Role</p>
+          <button class="ghost-btn" id="logoutBtn" type="button">Sign Out</button>
+        </section>
+
+        <nav class="nav-list" aria-label="Main navigation">
+          <button class="nav-btn active" data-view="scan" type="button">Scan</button>
+          <button class="nav-btn manager-only" data-view="inventory" type="button">Inventory</button>
+          <button class="nav-btn manager-only" data-view="locations" type="button">Locations</button>
+          <button class="nav-btn manager-only" data-view="users" type="button">Users</button>
+          <button class="nav-btn manager-only" data-view="activity" type="button">Activity</button>
+        </nav>
+
+        <div class="quick-stats">
+          <div>
+            <span id="statTotal">0</span>
+            <p>Total units</p>
+          </div>
+          <div>
+            <span id="statOut">0</span>
+            <p>Checked out</p>
+          </div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Inventory console</p>
+            <h2 id="viewTitle">Scan</h2>
+          </div>
+          <button class="ghost-btn manager-only" id="printLabelsBtn" type="button">Print Labels</button>
+        </header>
+
+        <section class="view active" id="scanView">
+          <div class="scan-layout">
+            <div class="scan-panel">
+              <label for="scanInput">Ready to scan</label>
+              <div class="scan-input-wrap">
+                <input id="scanInput" autocomplete="off" inputmode="text" placeholder="Scan item or bin barcode" />
+                <button id="scanBtn" type="button">Scan</button>
+              </div>
+              <p id="scanHelp">Scanner input is always focused on this screen. Scan a unit to check it out or back in. Scan a location to inspect its bin history.</p>
+            </div>
+
+            <div class="result-panel" id="scanResult">
+              <div class="empty-state">
+                <span class="empty-icon">AV</span>
+                <h3>No scan yet</h3>
+                <p>Scan a unit barcode or location barcode to begin.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="inventoryView">
+          <div class="manager-grid">
+            <form class="panel form-panel" id="itemForm">
+              <h3>Create item</h3>
+              <div class="form-grid">
+                <label>
+                  Item name
+                  <input id="itemName" required placeholder="8FT Extension Cable" />
+                </label>
+                <label>
+                  Location
+                  <select id="itemLocation"></select>
+                </label>
+                <label>
+                  Quantity
+                  <input id="itemQuantity" type="number" min="1" value="1" required />
+                </label>
+                <label>
+                  Tags
+                  <input id="itemTags" placeholder="Video, Cable, Power" />
+                </label>
+                <label class="wide-field">
+                  Notes
+                  <input id="itemNotes" placeholder="Color, rating, owner, etc." />
+                </label>
+              </div>
+              <button class="primary-btn" type="submit">Generate item barcodes</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-head stacked-head">
+                <div>
+                  <h3>Inventory</h3>
+                  <p class="row-sub">Search by item, bin, unit barcode, or tag.</p>
+                </div>
+                <input id="inventorySearch" placeholder="Search inventory" />
+              </div>
+              <div class="tag-filter" id="tagFilter"></div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Tags</th>
+                      <th>Location</th>
+                      <th>In</th>
+                      <th>Out</th>
+                      <th>Quantity</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="inventoryTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="locationsView">
+          <div class="manager-grid">
+            <form class="panel form-panel" id="locationForm">
+              <h3>Add location</h3>
+              <div class="form-grid">
+                <label>
+                  Location name
+                  <input id="locationName" required placeholder="Bin 4" />
+                </label>
+                <label>
+                  Area
+                  <input id="locationArea" placeholder="AV closet, stage rack, truck 2" />
+                </label>
+              </div>
+              <button class="primary-btn" type="submit">Create location barcode</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Storage locations</h3>
+              </div>
+              <div class="location-list" id="locationList"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="usersView">
+          <div class="manager-grid">
+            <form class="panel form-panel" id="userForm">
+              <h3>Create user</h3>
+              <div class="form-grid">
+                <label>
+                  Name
+                  <input id="userName" required placeholder="Alex Manager" />
+                </label>
+                <label>
+                  Email
+                  <input id="userEmail" type="email" required placeholder="alex@example.com" />
+                </label>
+                <label>
+                  Role
+                  <select id="userRole">
+                    <option value="associate">Associate</option>
+                    <option value="manager">Manager</option>
+                  </select>
+                </label>
+                <label>
+                  Password
+                  <input id="userPassword" type="password" required minlength="8" placeholder="At least 8 characters" />
+                </label>
+              </div>
+              <button class="primary-btn" type="submit">Create user</button>
+            </form>
+
+            <div class="panel">
+              <div class="panel-head">
+                <h3>Users</h3>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersTable"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="activityView">
+          <div class="panel">
+            <div class="panel-head">
+              <h3>Recent activity</h3>
+              <button class="ghost-btn danger" id="resetDemoBtn" type="button">Reset Demo Data</button>
+            </div>
+            <div class="activity-list" id="activityList"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="itemDialog">
+      <form method="dialog" class="modal">
+        <div class="modal-head">
+          <h3 id="dialogTitle">Item</h3>
+          <button class="icon-btn" value="close" aria-label="Close" type="submit">x</button>
+        </div>
+        <div id="dialogBody"></div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

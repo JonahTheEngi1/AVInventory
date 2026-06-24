@@ -1,0 +1,14 @@
+services:
+  avinventory:
+    build: .
+    container_name: avinventory
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      PORT: "8001"
+      DATA_DIR: /app/data
+      INIT_MANAGER_EMAIL: manager@avinventory.local
+      INIT_MANAGER_PASSWORD: AVInventory123!
+    volumes:
+      - ./data:/app/data
