@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AVInventory</title>
-    <link rel="stylesheet" href="styles.css?v=2026-06-24-2" />
+    <link rel="stylesheet" href="styles.css?v=2026-07-01-1" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen">
@@ -43,6 +43,7 @@
           <span>Signed in</span>
           <strong id="currentUserName">User</strong>
           <p id="currentUserRole">Role</p>
+          <button class="ghost-btn" id="themeToggle" type="button">Dark Mode</button>
           <button class="ghost-btn" id="logoutBtn" type="button">Sign Out</button>
         </section>
 
@@ -114,8 +115,13 @@
                   <input id="itemQuantity" type="number" min="1" value="1" required />
                 </label>
                 <label>
+                  Category
+                  <input id="itemCategory" list="categorySuggestions" placeholder="Video" />
+                  <datalist id="categorySuggestions"></datalist>
+                </label>
+                <label>
                   Tags
-                  <input id="itemTags" placeholder="Video, Cable, Power" />
+                  <input id="itemTags" placeholder="HDMI, Cable, 15FT" />
                 </label>
                 <label class="wide-field">
                   Notes
@@ -129,7 +135,7 @@
               <div class="panel-head stacked-head">
                 <div>
                   <h3>Inventory</h3>
-                  <p class="row-sub">Search by item, bin, unit barcode, or tag.</p>
+                  <p class="row-sub">Search by item, bin, unit barcode, category, or tag.</p>
                 </div>
                 <input id="inventorySearch" placeholder="Search inventory" />
               </div>
@@ -139,7 +145,7 @@
                   <thead>
                     <tr>
                       <th>Item</th>
-                      <th>Tags</th>
+                      <th>Category</th>
                       <th>Location</th>
                       <th>In</th>
                       <th>Out</th>
@@ -251,6 +257,6 @@
       </div>
     </dialog>
 
-    <script src="app.js?v=2026-06-24-2"></script>
+    <script src="app.js?v=2026-07-01-1"></script>
   </body>
 </html>

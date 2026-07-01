@@ -44,9 +44,9 @@ function makeInitialData() {
     { id: "LOC-RACK-A", name: "Rack A", area: "Stage Storage" }
   ];
   const products = [
-    { id: "ITEM-8FT-CABLE", name: "8FT Extension Cable", locationId: "LOC-BIN-4", notes: "Black Edison cable", tags: ["Power", "Cable"] },
-    { id: "ITEM-HDMI-15", name: "15FT HDMI Cable", locationId: "LOC-BIN-4", notes: "Labeled AV", tags: ["Video", "Cable"] },
-    { id: "ITEM-DI-BOX", name: "Passive DI Box", locationId: "LOC-RACK-A", notes: "Audio kit", tags: ["Audio"] }
+    { id: "ITEM-8FT-CABLE", name: "8FT Extension Cable", locationId: "LOC-BIN-4", notes: "Black Edison cable", category: "Power", tags: ["Cable", "Extension"] },
+    { id: "ITEM-HDMI-15", name: "15FT HDMI Cable", locationId: "LOC-BIN-4", notes: "Labeled AV", category: "Video", tags: ["Cable", "HDMI"] },
+    { id: "ITEM-DI-BOX", name: "Passive DI Box", locationId: "LOC-RACK-A", notes: "Audio kit", category: "Audio", tags: ["DI", "Stage"] }
   ];
   const units = [];
   products.forEach((product, productIndex) => {
@@ -90,10 +90,22 @@ function loadData() {
   data.units ||= [];
   data.activity ||= [];
   data.users ||= [];
+  let migrated = false;
+  data.products.forEach((product) => {
+    if (!product.category) {
+      product.category = "General";
+      migrated = true;
+    }
+    if (!Array.isArray(product.tags)) {
+      product.tags = [];
+      migrated = true;
+    }
+  });
   if (!data.users.some((user) => user.role === "manager")) {
     data.users.push(makeInitialData().users[0]);
-    saveData(data);
+    migrated = true;
   }
+  if (migrated) saveData(data);
   return data;
 }
 
@@ -235,6 +247,10 @@ function normalizeTags(tags) {
     .map((tag) => tag.slice(0, 32));
 }
 
+function normalizeCategory(category) {
+  return String(category || "General").trim().slice(0, 32) || "General";
+}
+
 function addUnits(productId, count, user) {
   const product = productById(productId);
   const existing = unitsForProduct(productId).length;
@@ -325,6 +341,7 @@ async function handleApi(req, res, url) {
       const name = String(body.name || "").trim();
       const locationId = String(body.locationId || "").trim();
       const quantity = Math.max(1, Number(body.quantity) || 1);
+      const category = normalizeCategory(body.category);
       if (!name) return sendError(res, 400, "Item name is required.");
       if (locationId && !locationById(locationId)) return sendError(res, 400, "Valid location is required.");
       const product = {
@@ -332,6 +349,7 @@ async function handleApi(req, res, url) {
         name,
         locationId,
         notes: String(body.notes || "").trim(),
+        category,
         tags: normalizeTags(body.tags)
       };
       data.products.push(product);
@@ -350,10 +368,13 @@ async function handleApi(req, res, url) {
       const body = await readBody(req);
       const name = String(body.name || "").trim();
       const locationId = String(body.locationId || "").trim();
+      const category = normalizeCategory(body.category);
       if (!name) return sendError(res, 400, "Item name is required.");
       if (locationId && !locationById(locationId)) return sendError(res, 400, "Valid location is required.");
       product.name = name;
       product.locationId = locationId;
+      product.category = category;
+      product.tags = normalizeTags(body.tags);
       logActivity("edited-item", user, { productId: product.id, label: product.name, locationId });
       saveData(data);
       return sendJson(res, 200, { product, state: stateFor(user) });

@@ -16,7 +16,9 @@ let state = { locations: [], products: [], units: [], activity: [], users: [] };
 let currentUser = null;
 let currentView = "scan";
 let authToken = localStorage.getItem("avinventory-token") || "";
+let selectedCategory = "";
 let selectedTag = "";
+let theme = localStorage.getItem("avinventory-theme") || "light";
 
 const els = {
   loginScreen: document.getElementById("loginScreen"),
@@ -39,8 +41,10 @@ const els = {
   itemName: document.getElementById("itemName"),
   itemLocation: document.getElementById("itemLocation"),
   itemQuantity: document.getElementById("itemQuantity"),
+  itemCategory: document.getElementById("itemCategory"),
   itemTags: document.getElementById("itemTags"),
   itemNotes: document.getElementById("itemNotes"),
+  categorySuggestions: document.getElementById("categorySuggestions"),
   inventorySearch: document.getElementById("inventorySearch"),
   inventoryTable: document.getElementById("inventoryTable"),
   tagFilter: document.getElementById("tagFilter"),
@@ -54,6 +58,7 @@ const els = {
   userRole: document.getElementById("userRole"),
   userPassword: document.getElementById("userPassword"),
   usersTable: document.getElementById("usersTable"),
+  themeToggle: document.getElementById("themeToggle"),
   activityList: document.getElementById("activityList"),
   statTotal: document.getElementById("statTotal"),
   statOut: document.getElementById("statOut"),
@@ -189,6 +194,17 @@ function showLoggedOut() {
   setTimeout(() => els.loginEmail.focus(), 50);
 }
 
+function applyTheme() {
+  document.body.classList.toggle("dark", theme === "dark");
+  els.themeToggle.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+}
+
+function toggleTheme() {
+  theme = theme === "dark" ? "light" : "dark";
+  localStorage.setItem("avinventory-theme", theme);
+  applyTheme();
+}
+
 function renderStats() {
   els.statTotal.textContent = state.units.length;
   els.statOut.textContent = state.units.filter((unit) => unit.status === "out").length;
@@ -200,21 +216,49 @@ function renderLocationOptions() {
     .join("");
 }
 
-function allTags() {
-  return [...new Set(state.products.flatMap((product) => product.tags || []))].sort((a, b) => a.localeCompare(b));
+function productCategory(product) {
+  return product.category || "General";
 }
 
-function tagChips(tags) {
-  if (!tags?.length) return `<span class="row-sub">No tags</span>`;
-  return tags.map((tag) => `<span class="tag-chip">${escapeHtml(tag)}</span>`).join("");
+function allCategories() {
+  return [...new Set(state.products.map(productCategory))].sort((a, b) => a.localeCompare(b));
+}
+
+function tagsForCategory(category) {
+  return [...new Set(state.products
+    .filter((product) => productCategory(product) === category)
+    .flatMap((product) => product.tags || []))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function renderCategorySuggestions() {
+  els.categorySuggestions.innerHTML = allCategories()
+    .map((category) => `<option value="${escapeHtml(category)}"></option>`)
+    .join("");
+}
+
+function categoryChip(category) {
+  return `<span class="tag-chip category-chip">${escapeHtml(category || "General")}</span>`;
 }
 
 function renderTagFilter() {
-  const tags = allTags();
-  els.tagFilter.innerHTML = [
-    `<button type="button" class="${selectedTag === "" ? "active" : ""}" data-tag="">All</button>`,
-    ...tags.map((tag) => `<button type="button" class="${selectedTag === tag ? "active" : ""}" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`)
+  const categories = allCategories();
+  if (selectedCategory && !categories.includes(selectedCategory)) {
+    selectedCategory = "";
+    selectedTag = "";
+  }
+  const categoryButtons = [
+    `<button type="button" class="${selectedCategory === "" ? "active" : ""}" data-filter-type="category" data-category="">All Categories</button>`,
+    ...categories.map((category) => `<button type="button" class="${selectedCategory === category ? "active" : ""}" data-filter-type="category" data-category="${escapeHtml(category)}">${escapeHtml(category)}</button>`)
   ].join("");
+  const tags = selectedCategory ? tagsForCategory(selectedCategory) : [];
+  if (selectedTag && !tags.includes(selectedTag)) selectedTag = "";
+  const tagButtons = tags.length ? `<div class="filter-row tag-row">
+    <span>Tags</span>
+    <button type="button" class="${selectedTag === "" ? "active" : ""}" data-filter-type="tag" data-tag="">All ${escapeHtml(selectedCategory)}</button>
+    ${tags.map((tag) => `<button type="button" class="${selectedTag === tag ? "active" : ""}" data-filter-type="tag" data-tag="${escapeHtml(tag)}">${escapeHtml(tag)}</button>`).join("")}
+  </div>` : "";
+  els.tagFilter.innerHTML = `<div class="filter-row"><span>Categories</span>${categoryButtons}</div>${tagButtons}`;
 }
 
 function renderInventory() {
@@ -224,16 +268,18 @@ function renderInventory() {
       const location = byId(state.locations, product.locationId);
       const unitText = unitsForProduct(product.id).map((unit) => unit.id).join(" ");
       const tags = (product.tags || []).join(" ");
-      const matchesQuery = `${product.name} ${location?.name || ""} ${unitText} ${tags}`.toLowerCase().includes(query);
+      const category = productCategory(product);
+      const matchesQuery = `${product.name} ${location?.name || ""} ${unitText} ${category} ${tags}`.toLowerCase().includes(query);
+      const matchesCategory = !selectedCategory || category === selectedCategory;
       const matchesTag = !selectedTag || (product.tags || []).includes(selectedTag);
-      return matchesQuery && matchesTag;
+      return matchesQuery && matchesCategory && matchesTag;
     })
     .map((product) => {
       const location = byId(state.locations, product.locationId);
       const counts = productCounts(product.id);
       return `<tr>
         <td><div class="row-title">${escapeHtml(product.name)}</div><div class="row-sub">${escapeHtml(product.notes || "No notes")}</div></td>
-        <td><div class="tag-list">${tagChips(product.tags)}</div></td>
+        <td><div class="tag-list">${categoryChip(productCategory(product))}</div></td>
         <td>${escapeHtml(location?.name || "Unassigned")}</td>
         <td>${counts.in}</td>
         <td>${counts.out}</td>
@@ -301,8 +347,10 @@ function renderActivity() {
 function renderAll() {
   if (!currentUser) return;
   showLoggedIn();
+  applyTheme();
   renderStats();
   renderLocationOptions();
+  renderCategorySuggestions();
   renderTagFilter();
   renderInventory();
   renderLocations();
@@ -390,6 +438,7 @@ async function createItem(event) {
       name: els.itemName.value,
       locationId: els.itemLocation.value,
       quantity: Number(els.itemQuantity.value),
+      category: els.itemCategory.value,
       tags: parseTags(els.itemTags.value),
       notes: els.itemNotes.value
     })
@@ -416,6 +465,14 @@ function showEditProductDialog(productId) {
       <input id="editProductName" required value="${escapeHtml(product.name)}" />
     </label>
     <label>
+      Category
+      <input id="editProductCategory" list="categorySuggestions" value="${escapeHtml(productCategory(product))}" />
+    </label>
+    <label>
+      Tags
+      <input id="editProductTags" value="${escapeHtml((product.tags || []).join(", "))}" />
+    </label>
+    <label>
       Storage location
       <select id="editProductLocation">${locationOptionMarkup(product.locationId)}</select>
     </label>
@@ -429,7 +486,9 @@ function showEditProductDialog(productId) {
         method: "PATCH",
         body: JSON.stringify({
           name: document.getElementById("editProductName").value,
-          locationId: document.getElementById("editProductLocation").value
+          locationId: document.getElementById("editProductLocation").value,
+          category: document.getElementById("editProductCategory").value,
+          tags: parseTags(document.getElementById("editProductTags").value)
         })
       });
       applyServerState(result.state);
@@ -507,7 +566,7 @@ function showProductDialog(productId) {
   const location = byId(state.locations, product.locationId);
   const labels = unitsForProduct(productId).map((unit) => `<article class="print-label">
     <h4>${escapeHtml(product.name)}</h4>
-    <p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml((product.tags || []).join(", "))}</p>
+    <p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml(productCategory(product))} | ${escapeHtml((product.tags || []).join(", "))}</p>
     <div class="barcode">${renderBarcode(unit.id, 58)}</div>
   </article>`).join("");
   els.dialogTitle.textContent = `${product.name} labels`;
@@ -531,7 +590,7 @@ function showLocationLabel(locationId) {
 function showAllLabels() {
   const itemLabels = state.products.flatMap((product) => unitsForProduct(product.id).map((unit) => {
     const location = byId(state.locations, product.locationId);
-    return `<article class="print-label"><h4>${escapeHtml(product.name)}</h4><p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml((product.tags || []).join(", "))}</p><div class="barcode">${renderBarcode(unit.id, 58)}</div></article>`;
+    return `<article class="print-label"><h4>${escapeHtml(product.name)}</h4><p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml(productCategory(product))} | ${escapeHtml((product.tags || []).join(", "))}</p><div class="barcode">${renderBarcode(unit.id, 58)}</div></article>`;
   })).join("");
   const locationLabels = state.locations.map((location) => `<article class="print-label"><h4>${escapeHtml(location.name)}</h4><p>${escapeHtml(location.area || "Storage location")}</p><div class="barcode">${renderBarcode(location.id, 58)}</div></article>`).join("");
   els.dialogTitle.textContent = "All printable labels";
@@ -572,6 +631,7 @@ async function restoreSession() {
 
 els.loginForm.addEventListener("submit", login);
 els.logoutBtn.addEventListener("click", showLoggedOut);
+els.themeToggle.addEventListener("click", toggleTheme);
 els.navBtns.forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 els.scanBtn.addEventListener("click", async () => {
   await scanValue(els.scanInput.value);
@@ -594,7 +654,13 @@ els.inventorySearch.addEventListener("input", renderInventory);
 els.tagFilter.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
-  selectedTag = button.dataset.tag || "";
+  if (button.dataset.filterType === "category") {
+    selectedCategory = button.dataset.category || "";
+    selectedTag = "";
+  }
+  if (button.dataset.filterType === "tag") {
+    selectedTag = button.dataset.tag || "";
+  }
   renderTagFilter();
   renderInventory();
 });
@@ -623,4 +689,5 @@ els.resetDemoBtn.addEventListener("click", async () => {
   applyServerState(result.state);
 });
 
+applyTheme();
 restoreSession();

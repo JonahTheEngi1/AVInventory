@@ -17,6 +17,24 @@
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+body.dark {
+  color-scheme: dark;
+  --bg: #101615;
+  --panel: #17211f;
+  --ink: #edf4f1;
+  --muted: #a4b2ad;
+  --line: #2d3a36;
+  --green: #54d0a9;
+  --green-soft: #173a31;
+  --blue: #8fbfff;
+  --blue-soft: #172940;
+  --amber: #e0b15f;
+  --amber-soft: #3b2b15;
+  --red: #ff8d8d;
+  --red-soft: #432020;
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.26);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -42,7 +60,7 @@ body {
   width: min(440px, 100%);
   display: grid;
   gap: 16px;
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 24px;
@@ -89,7 +107,7 @@ button {
 }
 
 .sidebar {
-  background: rgba(255, 255, 255, 0.82);
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
   border-right: 1px solid var(--line);
   padding: 26px 20px;
   display: flex;
@@ -148,7 +166,7 @@ button {
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #f8faf9;
+  background: color-mix(in srgb, var(--panel) 78%, var(--bg));
 }
 
 .user-panel strong {
@@ -173,14 +191,14 @@ button {
   width: 100%;
   text-align: left;
   padding: 12px 14px;
-  color: #33413d;
+  color: var(--ink);
   background: transparent;
   font-weight: 750;
 }
 
 .nav-btn:hover,
 .nav-btn.active {
-  background: #edf5f1;
+  background: var(--green-soft);
   color: var(--green);
 }
 
@@ -247,7 +265,7 @@ button {
 .scan-panel,
 .result-panel,
 .panel {
-  background: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
@@ -277,7 +295,7 @@ select {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: white;
+  background: var(--panel);
   color: var(--ink);
   min-height: 44px;
   padding: 10px 12px;
@@ -305,9 +323,9 @@ select:focus {
 }
 
 .ghost-btn {
-  background: white;
+  background: var(--panel);
   border: 1px solid var(--line);
-  color: #33413d;
+  color: var(--ink);
   min-height: 40px;
   padding: 0 14px;
   font-weight: 800;
@@ -473,10 +491,29 @@ select:focus {
 }
 
 .tag-filter {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+}
+
+.filter-row {
   display: flex;
+  align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  margin: 0 0 14px;
+}
+
+.filter-row > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+  min-width: 78px;
+}
+
+.tag-row {
+  padding-left: 12px;
+  border-left: 3px solid var(--green-soft);
 }
 
 .tag-filter button,
@@ -485,8 +522,8 @@ select:focus {
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line);
-  background: white;
-  color: #33413d;
+  background: var(--panel);
+  color: var(--ink);
   border-radius: 999px;
   min-height: 30px;
   padding: 0 10px;
@@ -499,6 +536,10 @@ select:focus {
   border-color: var(--green);
   background: var(--green-soft);
   color: var(--green);
+}
+
+.category-chip {
+  border-color: color-mix(in srgb, var(--green) 45%, var(--line));
 }
 
 .tag-list {
@@ -549,8 +590,8 @@ th {
 .action-row button,
 .location-card button {
   border: 1px solid var(--line);
-  background: white;
-  color: #33413d;
+  background: var(--panel);
+  color: var(--ink);
   border-radius: 8px;
   min-height: 34px;
   padding: 0 10px;
@@ -580,7 +621,7 @@ th {
 }
 
 .barcode {
-  background: white;
+  background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 10px;
@@ -606,7 +647,7 @@ th {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #fbfcfc;
+  background: color-mix(in srgb, var(--panel) 86%, var(--bg));
 }
 
 .activity-item strong {
@@ -663,7 +704,7 @@ dialog::backdrop {
 .icon-btn {
   width: 38px;
   height: 38px;
-  background: #f2f5f4;
+  background: color-mix(in srgb, var(--panel) 84%, var(--bg));
   color: var(--ink);
   font-size: 1.4rem;
 }
@@ -720,7 +761,7 @@ dialog::backdrop {
 
 @media print {
   body {
-    background: white;
+    background: var(--panel);
   }
 
   .app-shell,
