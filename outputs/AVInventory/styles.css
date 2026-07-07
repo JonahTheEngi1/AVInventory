@@ -720,6 +720,19 @@ dialog::backdrop {
   border-radius: 8px;
   padding: 12px;
   break-inside: avoid;
+  color: var(--ink);
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  text-align: left;
+  width: 100%;
+}
+
+.print-label:hover,
+.print-label:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 20%, transparent);
+  outline: 0;
 }
 
 .print-label h4,
@@ -730,6 +743,32 @@ dialog::backdrop {
 .print-label p {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.single-label-wrap {
+  display: grid;
+  place-items: center;
+  min-height: 360px;
+}
+
+.single-label {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  width: min(760px, 100%);
+}
+
+.single-label svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.single-label-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
 }
 
 .hidden {
@@ -789,6 +828,22 @@ dialog::backdrop {
 
   .modal {
     padding: 0;
+  }
+
+  .single-label-wrap {
+    min-height: auto;
+  }
+
+  .single-label {
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    width: 100%;
+  }
+
+  .single-label-actions,
+  .label-grid + .row-sub {
+    display: none;
   }
 
   .print-label {

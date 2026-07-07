@@ -70,6 +70,11 @@ const els = {
 };
 
 document.getElementById("dialogCloseBtn").addEventListener("click", () => els.dialog.close());
+els.dialogBody.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-action='single-label']");
+  if (!button) return;
+  showSingleLabel(button.dataset.barcode);
+});
 
 function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -564,37 +569,69 @@ async function createUser(event) {
 function showProductDialog(productId) {
   const product = byId(state.products, productId);
   const location = byId(state.locations, product.locationId);
-  const labels = unitsForProduct(productId).map((unit) => `<article class="print-label">
-    <h4>${escapeHtml(product.name)}</h4>
-    <p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml(productCategory(product))} | ${escapeHtml((product.tags || []).join(", "))}</p>
-    <div class="barcode">${renderBarcode(unit.id, 58)}</div>
-  </article>`).join("");
+  const subtitle = `${location?.name || "Unassigned"} | ${productCategory(product)} | ${(product.tags || []).join(", ")}`;
+  const labels = unitsForProduct(productId).map((unit) => labelCard({
+    title: product.name,
+    subtitle,
+    barcode: unit.id,
+    height: 58
+  })).join("");
   els.dialogTitle.textContent = `${product.name} labels`;
-  els.dialogBody.innerHTML = `<div class="label-grid">${labels}</div><p class="row-sub">Use your browser print command to print these labels.</p>`;
+  els.dialogBody.innerHTML = `<div class="label-grid">${labels}</div><p class="row-sub">Click a barcode to open a full-size single-label print view.</p>`;
   els.dialog.showModal();
 }
 
 function showLocationLabel(locationId) {
   const location = byId(state.locations, locationId);
   els.dialogTitle.textContent = `${location.name} location label`;
-  els.dialogBody.innerHTML = `<div class="label-grid">
-    <article class="print-label">
-      <h4>${escapeHtml(location.name)}</h4>
-      <p>${escapeHtml(location.area || "Storage location")}</p>
-      <div class="barcode">${renderBarcode(location.id, 68)}</div>
-    </article>
-  </div><p class="row-sub">Print and place this on the bin or shelf.</p>`;
+  els.dialogBody.innerHTML = `<div class="label-grid">${labelCard({
+    title: location.name,
+    subtitle: location.area || "Storage location",
+    barcode: location.id,
+    height: 68
+  })}</div><p class="row-sub">Click the barcode to open a full-size single-label print view.</p>`;
   els.dialog.showModal();
 }
 
 function showAllLabels() {
   const itemLabels = state.products.flatMap((product) => unitsForProduct(product.id).map((unit) => {
     const location = byId(state.locations, product.locationId);
-    return `<article class="print-label"><h4>${escapeHtml(product.name)}</h4><p>${escapeHtml(location?.name || "Unassigned")} | ${escapeHtml(productCategory(product))} | ${escapeHtml((product.tags || []).join(", "))}</p><div class="barcode">${renderBarcode(unit.id, 58)}</div></article>`;
+    return labelCard({
+      title: product.name,
+      subtitle: `${location?.name || "Unassigned"} | ${productCategory(product)} | ${(product.tags || []).join(", ")}`,
+      barcode: unit.id,
+      height: 58
+    });
   })).join("");
-  const locationLabels = state.locations.map((location) => `<article class="print-label"><h4>${escapeHtml(location.name)}</h4><p>${escapeHtml(location.area || "Storage location")}</p><div class="barcode">${renderBarcode(location.id, 58)}</div></article>`).join("");
+  const locationLabels = state.locations.map((location) => labelCard({
+    title: location.name,
+    subtitle: location.area || "Storage location",
+    barcode: location.id,
+    height: 58
+  })).join("");
   els.dialogTitle.textContent = "All printable labels";
-  els.dialogBody.innerHTML = `<div class="label-grid">${locationLabels}${itemLabels}</div>`;
+  els.dialogBody.innerHTML = `<div class="label-grid">${locationLabels}${itemLabels}</div><p class="row-sub">Click a barcode to open a full-size single-label print view.</p>`;
+  els.dialog.showModal();
+}
+
+function labelCard({ title, subtitle, barcode, height }) {
+  return `<button class="print-label" type="button" data-action="single-label" data-barcode="${escapeHtml(barcode)}">
+    <h4>${escapeHtml(title)}</h4>
+    <p>${escapeHtml(subtitle || "")}</p>
+    <div class="barcode">${renderBarcode(barcode, height)}</div>
+  </button>`;
+}
+
+function showSingleLabel(barcode) {
+  els.dialogTitle.textContent = barcode;
+  els.dialogBody.innerHTML = `<div class="single-label-wrap">
+    <div class="single-label">
+      ${renderBarcode(barcode, 150)}
+    </div>
+  </div>
+  <div class="single-label-actions">
+    <button class="primary-btn" type="button" onclick="window.print()">Print This Barcode</button>
+  </div>`;
   els.dialog.showModal();
 }
 
