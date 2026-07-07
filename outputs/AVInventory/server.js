@@ -37,23 +37,39 @@ function verifyPassword(password, stored) {
   return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(expected, "hex"));
 }
 
+function compactBarcodeId(prefix, exists) {
+  let id;
+  do {
+    id = `${prefix}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+  } while (exists(id));
+  return id;
+}
+
 function makeInitialData() {
   const now = new Date().toISOString();
+  const usedLocationIds = new Set();
+  const usedUnitIds = new Set();
+  const bin4Id = compactBarcodeId("AVL", (id) => usedLocationIds.has(id));
+  usedLocationIds.add(bin4Id);
+  const rackAId = compactBarcodeId("AVL", (id) => usedLocationIds.has(id));
+  usedLocationIds.add(rackAId);
   const locations = [
-    { id: "LOC-BIN-4", name: "Bin 4", area: "AV Closet" },
-    { id: "LOC-RACK-A", name: "Rack A", area: "Stage Storage" }
+    { id: bin4Id, name: "Bin 4", area: "AV Closet" },
+    { id: rackAId, name: "Rack A", area: "Stage Storage" }
   ];
   const products = [
-    { id: "ITEM-8FT-CABLE", name: "8FT Extension Cable", locationId: "LOC-BIN-4", notes: "Black Edison cable", category: "Power", tags: ["Cable", "Extension"] },
-    { id: "ITEM-HDMI-15", name: "15FT HDMI Cable", locationId: "LOC-BIN-4", notes: "Labeled AV", category: "Video", tags: ["Cable", "HDMI"] },
-    { id: "ITEM-DI-BOX", name: "Passive DI Box", locationId: "LOC-RACK-A", notes: "Audio kit", category: "Audio", tags: ["DI", "Stage"] }
+    { id: "ITEM-8FT-CABLE", name: "8FT Extension Cable", locationId: bin4Id, notes: "Black Edison cable", category: "Power", tags: ["Cable", "Extension"] },
+    { id: "ITEM-HDMI-15", name: "15FT HDMI Cable", locationId: bin4Id, notes: "Labeled AV", category: "Video", tags: ["Cable", "HDMI"] },
+    { id: "ITEM-DI-BOX", name: "Passive DI Box", locationId: rackAId, notes: "Audio kit", category: "Audio", tags: ["DI", "Stage"] }
   ];
   const units = [];
   products.forEach((product, productIndex) => {
     const count = productIndex === 2 ? 2 : 4;
     for (let i = 1; i <= count; i += 1) {
+      const unitId = compactBarcodeId("AVU", (id) => usedUnitIds.has(id));
+      usedUnitIds.add(unitId);
       units.push({
-        id: `${product.id}-${String(i).padStart(3, "0")}`,
+        id: unitId,
         productId: product.id,
         status: "in",
         lastActionAt: now,
@@ -231,14 +247,11 @@ function uniqueProductId(name) {
 }
 
 function uniqueLocationId(name) {
-  const base = `LOC-${slug(name, "LOCATION")}`;
-  let id = base;
-  let index = 2;
-  while (locationById(id)) {
-    id = `${base}-${index}`;
-    index += 1;
-  }
-  return id;
+  return compactBarcodeId("AVL", locationById);
+}
+
+function uniqueUnitId() {
+  return compactBarcodeId("AVU", unitById);
 }
 
 function normalizeTags(tags) {
@@ -253,11 +266,10 @@ function normalizeCategory(category) {
 
 function addUnits(productId, count, user) {
   const product = productById(productId);
-  const existing = unitsForProduct(productId).length;
   for (let i = 1; i <= count; i += 1) {
     const at = new Date().toISOString();
     data.units.push({
-      id: `${product.id}-${String(existing + i).padStart(3, "0")}`,
+      id: uniqueUnitId(),
       productId,
       status: "in",
       lastActionAt: at,

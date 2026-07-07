@@ -637,7 +637,7 @@ function showSingleLabel(barcode) {
   </div>
   <div class="single-label-actions">
     <button class="primary-btn" type="button" onclick="window.print()">Print This Barcode</button>
-    <button class="ghost-btn" type="button" data-action="copy-single-label" data-barcode="${escapeHtml(barcode)}">Copy This Barcode</button>
+    <button class="ghost-btn" type="button" data-action="copy-single-label" data-barcode="${escapeHtml(barcode)}">Copy Barcode Text</button>
     <span class="copy-status" id="copyStatus" role="status"></span>
   </div>`;
   els.dialog.showModal();
@@ -649,51 +649,15 @@ async function copySingleLabelBarcode(barcode, button) {
     if (status) status.textContent = message;
   };
   try {
-    if (!navigator.clipboard || !window.ClipboardItem) {
-      throw new Error("Image clipboard is not available in this browser.");
-    }
-    const svg = els.dialogBody.querySelector(".single-label svg");
-    if (!svg) throw new Error("No barcode image is open.");
-    const svgText = new XMLSerializer().serializeToString(svg);
-    const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
-    const imageUrl = URL.createObjectURL(svgBlob);
-    const image = new Image();
-    try {
-      image.src = imageUrl;
-      await new Promise((resolve, reject) => {
-        image.onload = resolve;
-        image.onerror = () => reject(new Error("Could not load barcode image."));
-      });
-      const viewBox = svg.viewBox.baseVal;
-      const width = viewBox?.width || image.width || 900;
-      const height = viewBox?.height || image.height || 260;
-      const scale = 3;
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(width * scale);
-      canvas.height = Math.ceil(height * scale);
-      const context = canvas.getContext("2d");
-      context.fillStyle = "#ffffff";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-      if (!pngBlob) throw new Error("Could not render barcode image.");
-      await navigator.clipboard.write([new ClipboardItem({ "image/png": pngBlob })]);
-    } finally {
-      URL.revokeObjectURL(imageUrl);
-    }
-    setStatus("Copied image");
+    await navigator.clipboard.writeText(barcode);
+    setStatus("Copied barcode text");
     button.textContent = "Copied";
     setTimeout(() => {
-      button.textContent = "Copy This Barcode";
+      button.textContent = "Copy Barcode Text";
       setStatus("");
     }, 1800);
   } catch (error) {
-    try {
-      await navigator.clipboard.writeText(barcode);
-      setStatus("Image copy unavailable; copied barcode text");
-    } catch {
-      setStatus(friendlyClipboardError(error));
-    }
+    setStatus(friendlyClipboardError(error));
   }
 }
 
