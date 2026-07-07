@@ -54,8 +54,8 @@ function makeInitialData() {
   const rackAId = compactBarcodeId("AVL", (id) => usedLocationIds.has(id));
   usedLocationIds.add(rackAId);
   const locations = [
-    { id: bin4Id, name: "Bin 4", area: "AV Closet" },
-    { id: rackAId, name: "Rack A", area: "Stage Storage" }
+    { id: bin4Id, name: "Bin 4", area: "AV Closet", parentId: "" },
+    { id: rackAId, name: "Rack A", area: "Stage Storage", parentId: "" }
   ];
   const products = [
     { id: "ITEM-8FT-CABLE", name: "8FT Extension Cable", locationId: bin4Id, notes: "Black Edison cable", category: "Power", tags: ["Cable", "Extension"] },
@@ -107,6 +107,12 @@ function loadData() {
   data.activity ||= [];
   data.users ||= [];
   let migrated = false;
+  data.locations.forEach((location) => {
+    if (typeof location.parentId !== "string") {
+      location.parentId = "";
+      migrated = true;
+    }
+  });
   data.products.forEach((product) => {
     if (!product.category) {
       product.category = "General";
@@ -434,8 +440,10 @@ async function handleApi(req, res, url) {
       if (!user) return;
       const body = await readBody(req);
       const name = String(body.name || "").trim();
+      const parentId = String(body.parentId || "").trim();
       if (!name) return sendError(res, 400, "Location name is required.");
-      const location = { id: uniqueLocationId(name), name, area: String(body.area || "").trim() };
+      if (parentId && !locationById(parentId)) return sendError(res, 400, "Valid parent location is required.");
+      const location = { id: uniqueLocationId(name), name, area: String(body.area || "").trim(), parentId };
       data.locations.push(location);
       logActivity("created-location", user, { locationId: location.id, label: location.name });
       saveData(data);
@@ -450,6 +458,9 @@ async function handleApi(req, res, url) {
       const location = locationById(locationId);
       if (!location) return sendError(res, 404, "Location not found.");
       data.locations = data.locations.filter((entry) => entry.id !== locationId);
+      data.locations.forEach((entry) => {
+        if (entry.parentId === locationId) entry.parentId = "";
+      });
       data.products.forEach((product) => {
         if (product.locationId === locationId) product.locationId = "";
       });

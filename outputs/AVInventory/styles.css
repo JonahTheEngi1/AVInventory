@@ -655,6 +655,17 @@ th {
   margin-bottom: 2px;
 }
 
+.activity-item button {
+  align-self: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  min-height: 34px;
+  padding: 0 10px;
+  font-weight: 780;
+}
+
 .time {
   color: var(--muted);
   font-size: 0.82rem;

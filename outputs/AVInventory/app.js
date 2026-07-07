@@ -51,6 +51,7 @@ const els = {
   locationForm: document.getElementById("locationForm"),
   locationName: document.getElementById("locationName"),
   locationArea: document.getElementById("locationArea"),
+  locationParent: document.getElementById("locationParent"),
   locationList: document.getElementById("locationList"),
   userForm: document.getElementById("userForm"),
   userName: document.getElementById("userName"),
@@ -222,9 +223,56 @@ function renderStats() {
 }
 
 function renderLocationOptions() {
-  els.itemLocation.innerHTML = `<option value="">Unassigned</option>` + state.locations
-    .map((location) => `<option value="${escapeHtml(location.id)}">${escapeHtml(location.name)}</option>`)
+  const sorted = sortedLocations();
+  const options = sorted
+    .map(({ location, depth }) => `<option value="${escapeHtml(location.id)}">${"&nbsp;&nbsp;".repeat(depth)}${escapeHtml(location.name)}</option>`)
     .join("");
+  els.itemLocation.innerHTML = `<option value="">Unassigned</option>${options}`;
+  els.locationParent.innerHTML = `<option value="">No parent</option>${options}`;
+}
+
+function locationChildren(parentId) {
+  return state.locations
+    .filter((location) => (location.parentId || "") === parentId)
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function descendantLocationIds(locationId) {
+  return locationChildren(locationId).flatMap((child) => [child.id, ...descendantLocationIds(child.id)]);
+}
+
+function locationTreeIds(locationId) {
+  return [locationId, ...descendantLocationIds(locationId)];
+}
+
+function productsInLocationTree(locationId) {
+  const ids = new Set(locationTreeIds(locationId));
+  return state.products.filter((product) => ids.has(product.locationId));
+}
+
+function sortedLocations(parentId = "", depth = 0, visited = new Set()) {
+  return locationChildren(parentId).flatMap((location) => {
+    if (visited.has(location.id)) return [];
+    const nextVisited = new Set(visited);
+    nextVisited.add(location.id);
+    return [
+      { location, depth },
+      ...sortedLocations(location.id, depth + 1, nextVisited)
+    ];
+  });
+}
+
+function locationPath(location) {
+  if (!location) return "Unassigned";
+  const names = [];
+  let current = location;
+  const visited = new Set();
+  while (current && !visited.has(current.id)) {
+    visited.add(current.id);
+    names.unshift(current.name);
+    current = byId(state.locations, current.parentId);
+  }
+  return names.join(" / ");
 }
 
 function productCategory(product) {
@@ -309,13 +357,16 @@ function renderInventory() {
 }
 
 function renderLocations() {
-  els.locationList.innerHTML = state.locations.map((location) => {
-    const units = state.units.filter((unit) => byId(state.products, unit.productId)?.locationId === location.id);
+  els.locationList.innerHTML = sortedLocations().map(({ location, depth }) => {
+    const locationProducts = productsInLocationTree(location.id);
+    const locationProductIds = new Set(locationProducts.map((product) => product.id));
+    const units = state.units.filter((unit) => locationProductIds.has(unit.productId));
     const out = units.filter((unit) => unit.status === "out").length;
+    const childCount = locationChildren(location.id).length;
     return `<article class="location-card">
       <div>
-        <h4>${escapeHtml(location.name)}</h4>
-        <p class="row-sub">${escapeHtml(location.area || "No area set")} | ${units.length} units | ${out} out</p>
+        <h4>${"&nbsp;".repeat(depth * 4)}${escapeHtml(location.name)}</h4>
+        <p class="row-sub">${escapeHtml(locationPath(location))} | ${escapeHtml(location.area || "No area set")} | ${units.length} units | ${out} out | ${childCount} sub-location${childCount === 1 ? "" : "s"}</p>
       </div>
       <div class="barcode">${renderBarcode(location.id, 54)}</div>
       <div class="action-row">
@@ -389,13 +440,18 @@ function renderScanUnit(unit, product, location, action) {
 }
 
 function showLocationScan(location) {
-  const units = state.units.filter((unit) => byId(state.products, unit.productId)?.locationId === location.id);
+  const treeIds = new Set(locationTreeIds(location.id));
+  const locationProducts = state.products.filter((product) => treeIds.has(product.locationId));
+  const locationProductIds = new Set(locationProducts.map((product) => product.id));
+  const units = state.units.filter((unit) => locationProductIds.has(unit.productId));
+  const children = locationChildren(location.id);
   const rows = units.map((unit) => {
     const product = byId(state.products, unit.productId);
+    const productLocation = byId(state.locations, product?.locationId);
     return `<div class="activity-item">
       <div>
         <strong>${escapeHtml(product?.name || "Unknown item")}</strong>
-        <p>${escapeHtml(unit.id)} | ${unit.status === "in" ? "stored in" : "checked out from"} ${escapeHtml(location.name)}</p>
+        <p>${escapeHtml(unit.id)} | ${unit.status === "in" ? "stored in" : "checked out from"} ${escapeHtml(locationPath(productLocation))}</p>
       </div>
       <span class="small-chip ${unit.status}">${unit.status === "in" ? "In" : "Out"}</span>
     </div>`;
@@ -409,11 +465,16 @@ function showLocationScan(location) {
     </div>`).join("");
   els.scanResult.innerHTML = `<div class="scan-card">
     <span class="status-chip location">Location</span>
-    <div class="scan-title"><h3>${escapeHtml(location.name)}</h3><span class="time">${escapeHtml(location.area || "")}</span></div>
+    <div class="scan-title"><h3>${escapeHtml(locationPath(location))}</h3><span class="time">${escapeHtml(location.area || "")}</span></div>
     <div class="meta-grid">
       <div><span>Total units</span><strong>${units.length}</strong></div>
       <div><span>Checked out</span><strong>${units.filter((unit) => unit.status === "out").length}</strong></div>
     </div>
+    <h4>Sub-locations</h4>
+    <div class="history-list">${children.map((child) => `<div class="activity-item">
+      <div><strong>${escapeHtml(child.name)}</strong><p>${escapeHtml(child.area || "No area set")} | ${productsInLocationTree(child.id).length} product type${productsInLocationTree(child.id).length === 1 ? "" : "s"}</p></div>
+      <button type="button" data-action="scan-location" data-id="${escapeHtml(child.id)}">Open</button>
+    </div>`).join("") || "<p>No sub-locations.</p>"}</div>
     <h4>Current items</h4>
     <div class="history-list">${rows || "<p>No items assigned to this location.</p>"}</div>
     <h4>Recent location history</h4>
@@ -537,7 +598,7 @@ async function createLocation(event) {
   event.preventDefault();
   const result = await api("/api/locations", {
     method: "POST",
-    body: JSON.stringify({ name: els.locationName.value, area: els.locationArea.value })
+    body: JSON.stringify({ name: els.locationName.value, area: els.locationArea.value, parentId: els.locationParent.value })
   });
   applyServerState(result.state);
   els.locationForm.reset();
@@ -592,7 +653,7 @@ function showLocationLabel(locationId) {
   els.dialogTitle.textContent = `${location.name} location label`;
   els.dialogBody.innerHTML = `<div class="label-grid">${labelCard({
     title: location.name,
-    subtitle: location.area || "Storage location",
+    subtitle: `${locationPath(location)} | ${location.area || "Storage location"}`,
     barcode: location.id,
     height: 68
   })}</div><p class="row-sub">Click the barcode to open a full-size single-label print view.</p>`;
@@ -611,7 +672,7 @@ function showAllLabels() {
   })).join("");
   const locationLabels = state.locations.map((location) => labelCard({
     title: location.name,
-    subtitle: location.area || "Storage location",
+    subtitle: `${locationPath(location)} | ${location.area || "Storage location"}`,
     barcode: location.id,
     height: 58
   })).join("");
@@ -714,6 +775,12 @@ els.scanInput.addEventListener("keydown", (event) => {
     event.preventDefault();
     els.scanBtn.click();
   }
+});
+els.scanResult.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-action='scan-location']");
+  if (!button) return;
+  const location = byId(state.locations, button.dataset.id);
+  if (location) showLocationScan(location);
 });
 document.addEventListener("click", () => {
   if (currentView === "scan" && currentUser) els.scanInput.focus();
