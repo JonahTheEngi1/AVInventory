@@ -767,8 +767,16 @@ dialog::backdrop {
 
 .single-label-actions {
   display: flex;
+  align-items: center;
+  gap: 10px;
   justify-content: flex-end;
   margin-top: 14px;
+}
+
+.copy-status {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 750;
 }
 
 .hidden {
